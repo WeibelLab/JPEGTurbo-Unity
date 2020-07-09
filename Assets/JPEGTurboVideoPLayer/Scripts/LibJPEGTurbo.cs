@@ -3,9 +3,21 @@ using System;
 using System.Runtime.InteropServices;
 
 /// <summary>
-/// Wraps lipjpegturbo
+/// This class wraps lipjpegturbo.
+/// You should not use it directly unless you want something specific from Turbo JPEG
+/// If you are interested in decoding or encoding JPEGs, consider the following classes:
+/// 
+/// Basic classes:
+/// - JPEGTurboDecoder: jpeg encoder wrap
+/// - (todo) JPEGTurboEncoder: jpeg decoder wrap
+/// 
+/// Application-specific classes:
+/// - JPEGStreamReceiver: receives a JPEG over TCP and decodes it
+/// - (todo) JPEGSTreamSender: encodes a byte stream and sends it as a JPEG over TCP
+/// 
+/// Author: danilo gasques - gasques@ucsd.edu
 /// </summary>
-class LibJPEGTurbo
+public class LibJPEGTurbo
 {
     
     private const string NATIVE_LIBRARY_NAME = "turbojpeg";
