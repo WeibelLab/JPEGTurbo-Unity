@@ -71,7 +71,6 @@ public class JPEGTurboDecoder : IDisposable
         }
     }
     
-
     public JPEGTurboDecoder()
     {
         try
@@ -133,6 +132,10 @@ public class JPEGTurboDecoder : IDisposable
     {
         if (!disposedValue)
         {
+            // let others know this is gone
+            disposedValue = true;
+
+
             // // frees managed resources (we have none)
             //if (disposing)
             //{
@@ -140,14 +143,15 @@ public class JPEGTurboDecoder : IDisposable
             // nothing here
             //}
 
-
             // frees LigJPEGTurbo handle
             decoderAvailable = false;
-            LibJPEGTurbo.tjDestroy(decoderHandle);
-            decoderHandle = IntPtr.Zero;
 
-            // let others know this is gone
-            disposedValue = true;
+            // did we have a decoder available?
+            if (decoderHandle != IntPtr.Zero)
+                LibJPEGTurbo.tjDestroy(decoderHandle);
+
+            // zero decoder
+            decoderHandle = IntPtr.Zero;
 
         }
     }

@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.44657898, g: 0.4964133, b: 0.5748178, a: 1}
+  m_IndirectSpecularColor: {r: 0.44657874, g: 0.49641258, b: 0.5748172, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -96,6 +96,7 @@ LightmapSettings:
     m_PVRFilteringAtrousPositionSigmaAO: 1
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
+    m_LightProbeSampleCountMultiplier: 4
   m_LightingDataAsset: {fileID: 0}
   m_UseShadowmask: 1
 --- !u!196 &4
@@ -177,8 +178,9 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 705507993}
   m_Enabled: 1
-  serializedVersion: 9
+  serializedVersion: 10
   m_Type: 1
+  m_Shape: 0
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
   m_Range: 10
@@ -357,9 +359,9 @@ MeshCollider:
   m_Material: {fileID: 0}
   m_IsTrigger: 0
   m_Enabled: 1
-  serializedVersion: 3
+  serializedVersion: 4
   m_Convex: 0
-  m_CookingOptions: 14
+  m_CookingOptions: 30
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &1311538668
 MeshRenderer:
@@ -375,6 +377,7 @@ MeshRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -433,27 +436,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5b1d898bcaf64c74d85c30979c95ae74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  isServer: 0
-  ListenPort: 0
-  EventType: 0
-  StringMessageReceived:
-    m_PersistentCalls:
-      m_Calls: []
-  ByteMessageReceived:
-    m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1311538672}
-        m_MethodName: NewFrameArrived
-        m_Mode: 0
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
-  JsonMessageReceived:
+  SocketName: local python jpeg encoder
+  HostName: 127.0.0.1
+  HostPort: 50000
+  ConnectOnEnable: 1
+  dropAccumulatedMessages: 0
+  MessageReceivedEvent:
     m_PersistentCalls:
       m_Calls: []
   OnConnect:
@@ -462,17 +450,13 @@ MonoBehaviour:
   OnDisconnect:
     m_PersistentCalls:
       m_Calls: []
-  dynamicMessageLength: 1
-  fixedMessageLength: 1024
-  dropAccumulatedMessages: 0
   ReconnectTimeoutMs: 1000
   ListenErrorTimeoutMs: 5000
-  WaitToAbortMs: 100
-  ConnectOnEnable: 1
-  Host:
-    Name: jpeg video server
-    Address: 127.0.0.1
-    Port: 4051
+  MessagesDropped: 0
+  MessagesReceived: 0
+  BytesReceived: 0
+  BytesDropped: 0
+  ConnectionErrors: 0
 --- !u!114 &1311538672
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -485,10 +469,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 960c61f9935163b46a6a21e1f3e132c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  UpdateTexture: 1
+  MeshToUpdate: {fileID: 0}
   textureWidth: 0
   textureHeight: 0
-  BlazinglyFastDecode: 0
+  FasterDecoding: 0
 --- !u!1 &1354210681
 GameObject:
   m_ObjectHideFlags: 0
@@ -504,7 +488,7 @@ GameObject:
   - component: {fileID: 1354210684}
   - component: {fileID: 1354210683}
   m_Layer: 0
-  m_Name: VideoPlayer2
+  m_Name: VideoPlayer2 - Not dropping accumulated messages on socket
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -536,27 +520,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5b1d898bcaf64c74d85c30979c95ae74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  isServer: 0
-  ListenPort: 0
-  EventType: 0
-  StringMessageReceived:
-    m_PersistentCalls:
-      m_Calls: []
-  ByteMessageReceived:
-    m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1354210684}
-        m_MethodName: NewFrameArrived
-        m_Mode: 0
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
-  JsonMessageReceived:
+  SocketName: local python jpeg encoder
+  HostName: 127.0.0.1
+  HostPort: 50000
+  ConnectOnEnable: 1
+  dropAccumulatedMessages: 1
+  MessageReceivedEvent:
     m_PersistentCalls:
       m_Calls: []
   OnConnect:
@@ -565,17 +534,13 @@ MonoBehaviour:
   OnDisconnect:
     m_PersistentCalls:
       m_Calls: []
-  dynamicMessageLength: 1
-  fixedMessageLength: 1024
-  dropAccumulatedMessages: 1
   ReconnectTimeoutMs: 1000
   ListenErrorTimeoutMs: 5000
-  WaitToAbortMs: 100
-  ConnectOnEnable: 1
-  Host:
-    Name: jpeg video server
-    Address: 127.0.0.1
-    Port: 4052
+  MessagesDropped: 0
+  MessagesReceived: 0
+  BytesReceived: 0
+  BytesDropped: 0
+  ConnectionErrors: 0
 --- !u!114 &1354210684
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -588,10 +553,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 960c61f9935163b46a6a21e1f3e132c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  UpdateTexture: 1
+  MeshToUpdate: {fileID: 0}
   textureWidth: 0
   textureHeight: 0
-  BlazinglyFastDecode: 0
+  FasterDecoding: 0
 --- !u!64 &1354210685
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -602,9 +567,9 @@ MeshCollider:
   m_Material: {fileID: 0}
   m_IsTrigger: 0
   m_Enabled: 1
-  serializedVersion: 3
+  serializedVersion: 4
   m_Convex: 0
-  m_CookingOptions: 14
+  m_CookingOptions: 30
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &1354210686
 MeshRenderer:
@@ -620,6 +585,7 @@ MeshRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:

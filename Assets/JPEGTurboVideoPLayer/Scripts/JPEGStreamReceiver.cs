@@ -5,15 +5,28 @@ using UnityEngine;
 
 /**
  *
- * JPEGStreamReceiver uses a TCP Socket to receive
- * and decode jpegs in a threaded environment.
+ * JPEGStreamReceiver uses JPEGTurbo to decode jpeg's in a separate thread, updating a Texture on Unity whenever possible
  *
+ * How to use it?
+ * - Add JPEGStreamReceiver to a Transform (e.g.: plane)
+ * -- Associate a MeshRenderer with MeshToUpdate
+ * - From another script, invoke NewFrameArrived to update the texture associated with MeshRenderer
+ *
+ * History:
+ * - v1.0.0
+ *
+ * author: Danilo Gasques (gasques@ucsd.edu)
  */
 public class JPEGStreamReceiver : MonoBehaviour
 {
 
-    [HideInInspector]
-    public bool UpdateTexture = true;
+    [Tooltip("MeshRenderer that this script will update - if not set, JPEGStreamReceiver looks for a MeshRenderer in the same transform")]
+    public MeshRenderer MeshToUpdate;
+
+    //[Tooltip("If UpdateTexture is true, then the associated MeshRenderer will have its texture updated when a JPEG is decoded")]
+    //public bool UpdateTexture = true;
+
+    // if true, it means that our texture was set on a MeshRenderer
     private bool SetTexture = false;
 
     #region Private info related to texture
@@ -69,7 +82,22 @@ public class JPEGStreamReceiver : MonoBehaviour
         if (videoTexture == null)
         {
             videoTexture = new Texture2D(1, 1);
-            GetComponent<MeshRenderer>().material.mainTexture = videoTexture;
+
+            // not set?
+            if (MeshToUpdate == null)
+            {
+                MeshToUpdate = GetComponent<MeshRenderer>();
+            }
+
+            // update texture
+            if (MeshToUpdate == null)
+            {
+                Debug.LogError(string.Format("[JPEGStreamReceiver@{0}] Could not find a suitable MeshRenderer... Make sure this script is added to an object that has a mesh", LogName));
+            } else
+            {
+                MeshToUpdate.material.mainTexture = videoTexture;
+                SetTexture = true;
+            }
         }
 
         // creates decoder
@@ -161,9 +189,6 @@ public class JPEGStreamReceiver : MonoBehaviour
             Debug.LogWarning(string.Format("[JPEGStreamReceiver@{0}] Dropped a total of {1} frames", LogName, droppedFrames));
         }
 
-        // todo: print statistics so that we can debug what happend during the time this decoder
-        // was displaying frames
-
         // time so far
         double totalTimePlaying = (DateTime.Now - onenabletime).TotalSeconds;
         Debug.LogWarning(string.Format("[JPEGStreamReceiver@{0}] Stats: {1} frames displayed, {2} frames dropped, {3} frames decoded. Displayed at {4} fps. Decoded at {5} fps.", LogName, displayedFrames, droppedFrames, decodedFrames, displayedFrames/totalTimePlaying, decodedFrames/totalTimePlaying));
@@ -208,7 +233,8 @@ public class JPEGStreamReceiver : MonoBehaviour
                     if (videoTexture != null)
                     {
                         videoTexture = new Texture2D(textureWidth, textureHeight, TextureFormat.RGB24, false);
-                        GetComponent<MeshRenderer>().material.mainTexture = videoTexture;
+                        if (MeshToUpdate != null)
+                            MeshToUpdate.material.mainTexture = videoTexture;
                     }
 
                     // we have to resize the interface
@@ -221,12 +247,6 @@ public class JPEGStreamReceiver : MonoBehaviour
                 videoTexture.LoadRawTextureData(currentBuffer);
                 videoTexture.Apply();
                 displayedFrames++;
-
-                if (!SetTexture)
-                {
-                    //GetComponentInParent<AdaptiveSizing>().Resize();
-                    SetTexture = true;
-                }
 
                 // frees it before next render loop
                 currentBuffer = null;
@@ -257,24 +277,31 @@ public class JPEGStreamReceiver : MonoBehaviour
                     lock (encodedFramesQLock)
                     {
                         Monitor.Wait(encodedFramesQLock); // waits for a pulse so that we know that we can dequeue
+    
+                        // were we killed?
+                        if (!decoderThreadRunning)
+                        {
+                            break;
+                        }
 
-                        // do we have a frame?
+                        // not killed! Do we have a frame?
                         if (encodedFramesQ.Count > 0)
                         {
                             tmpFrameQ = encodedFramesQ;
                             encodedFramesQ = new Queue<byte[]>();
                         }
-                        else if (!decoderThreadRunning)
-                        {
-                            // oh, we were killed?
-                            break;
-                        }
+                       
                     }
 
                     while (decoderThreadRunning && tmpFrameQ.Count > 0)
                     {
 
-                        frame = tmpFrameQ.Dequeue();
+                        // skips frames that we might have accumulated over time (frame will have the last frame)
+                        while (tmpFrameQ.Count > 0)
+                        {
+                            ++droppedFrames;
+                            frame = tmpFrameQ.Dequeue();
+                        }
 
                         // while we have frames, decode them
                         int width = 0, height = 0;
@@ -359,7 +386,7 @@ public class JPEGStreamReceiver : MonoBehaviour
     }
 
     /// <summary>
-    /// This method is called whenever an encoded frame is received
+    /// Invoke to have the resulting JPEG decoded in a separate thread (when libjpeg turbo)
     /// </summary>
     /// <param name="frame"></param>
     /// 
@@ -410,28 +437,10 @@ public class JPEGStreamReceiver : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Event Handler gets called when video stream is working
-    /// </summary>
-    /// <param name="socket"></param>
-    public void OnVideoConnected(ReliableCommunication socket)
-    {
-        // Do UI stuff
-    }
-
-    /// <summary>
-    /// Event handler gets called when video stream disconnects
-    /// </summary>
-    /// <param name="socket"></param>
-    public void OnVideoDisconnected(ReliableCommunication socket)
-    {
-        // Do UI stuff
-    }
-
 
     #region FrameSettings definition
     /// <summary>
-    /// FrameSettings works as a temporary buffer for frames decoded by
+    /// FrameSettings works as a temporary buffer for frames decoded by JPEGStreamReceiver
     /// </summary>
     class FrameSettings
     {
