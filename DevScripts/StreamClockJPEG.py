@@ -24,134 +24,209 @@ import logging
 import time
 import math
 import simplejpeg
+import socketserver
+import threading
 from datetime import datetime
 
-# parse arguments
-parser = argparse.ArgumentParser(description="TCPServer that streams a JPEG of current the current time")
-parser.add_argument('width', nargs='?', type=int, help="image width", default=800)
-parser.add_argument('height', nargs='?', type=int, help="image height", default=600)
-parser.add_argument('fps', nargs='?', type=int, help="desired frame rate", default=30)
-parser.add_argument('port', nargs='?', type=int, help="TCPServer's port (default=50000)", default=50000)
-parser.add_argument('--background', nargs='?', type=str, help="desired background image", default="background.jpg")
-parser.add_argument('--display', action='store_true', help="If set, shows the clock to the user (Warning: lowers max FPS)", default=False)
-parser.add_argument('--quality', nargs='?', type=int, help="desired JPEG quality (default=90)", default=90)
+#
+# Creating basic logging mechanism
+#
+logging.basicConfig(level=logging.INFO,
+                    format='[%(asctime)s] <%(name)s>: %(message)s',
+                    )
+mainLogger = logging.getLogger('Main')
 
-args = parser.parse_args()
 
-PORT = args.port
-ADDR = "0.0.0.0"
-WIDTH = args.width
-if WIDTH < 0:
-  WIDTH = 640
+#
+# Define TCPServer class we use for streaming
+#
 
-HEIGHT = args.height 
-if HEIGHT < 0:
-  HEIGHT = 480
-  
-QUALITY = args.quality
-
-FPS = args.fps
-
-print("Welcome to StreamclockJPEG!")
-print("-"*20)
-print("Preparing virtual clock...")
-
-# helper function to write an entire chunck of data
-def sendEntireMessage(sock, message):
+class JPEGStreamerClientHandler(socketserver.BaseRequestHandler):
+  '''
+  Handles a connection to our TCPServer.
+  '''
+  def __init__(self, request, client_address, server):
+    self.logger = logging.getLogger('Client %s:%d'%(self.client_ip, self.client_port))
+    self.client_ip = client_address[0]
+    self.client_port = client_address[1]
+    self.logger.info('Connected')
+    self.startTime = time.time()
+    socketserver.BaseRequestHandler.__init__(self, request, client_address, server)
+    return
+      
+  def handle(self):
+    '''Invoked when the client receives a message (does nothing)'''
+    # Echo the back to the client 
+    #data = self.request.recv(1024)
+    #self.logger.debug('recv()->"%s"', data)
+    #self.request.send(data)
+    return
+    
+  def sendMessage(self, frame):
+    '''sends the entire frame to the client. Returns the number of bytes sent (if less than len(frame) than client disconnected)'''
+    
+    # sends message length
+    self.request.sendall(len(frame).to_bytes(4, "little"))
+    
+    # sends the entire message using send (instead of sendall) to avoid timeout issues
     totalsent = 0
-    while totalsent < len(message):
-        sent = sock.send(message[totalsent:])
-        if sent == 0:
-            raise RuntimeError("socket connection broken")
-        totalsent = totalsent + sent
-    return len(message)
-
-# Loads background image
-print(" -> Loading background image %s" % args.background)
-backgroundImage = cv2.imread(args.background, 1)
-
-backgroundImageScaled = cv2.resize(backgroundImage, (WIDTH, HEIGHT), cv2.INTER_LANCZOS4)
-
-# Finds a font size that makes the clock take only 20px at the center
-timeNowStr = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-fontHeight = 20
-fontSize = cv2.getFontScaleFromHeight(cv2.FONT_HERSHEY_SIMPLEX, fontHeight, 2)
-textY = int(HEIGHT/2 - fontHeight/2)
-textX = int(WIDTH/2 - cv2.getTextSize(timeNowStr, cv2.FONT_HERSHEY_SIMPLEX, fontSize,2)[0][0]/2)
-
-# prints once for the sake of testing it and creating a window
-image = cv2.putText(np.copy(backgroundImageScaled), timeNowStr, (textX, textY), cv2.FONT_HERSHEY_SIMPLEX,  
-                   fontSize, (255, 255, 255), 2, cv2.LINE_AA) 
-if args.display:                   
-  cv2.imshow('time',image)
-  cv2.waitKey(1)
-
-# prints 100 times as fast as possible to figure out a cap for the frame rate ('cause OpenCV windows are not too fast)
-# (includes copying background, writing text, and encoding to JPEG)
-print(" -> Testing max FPS (display=%s)" % ("yes" if args.display else "no"))
-startTime = time.time()
-for i in range(100):
-  timeNowStr = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-  image = cv2.putText(np.copy(backgroundImageScaled), timeNowStr, (textX, textY), cv2.FONT_HERSHEY_SIMPLEX,  
-                   fontSize, (255, 255, 255), 2, cv2.LINE_AA) 
-  #encimg = cv2.imencode('.jpg', image)                 
-  encimg = simplejpeg.encode_jpeg(image, QUALITY, 'BGR')
-  if args.display:                   
-    cv2.imshow('time',image)
-    cv2.waitKey(1)
+    while totalsent < len(frame):
+      sent = self.request.send(frame[totalsent:])
+      if sent == 0:
+          raise RuntimeError("socket connection broken after sending ")
+      totalsent = totalsent + sent
+    return len(frame)
     
-if args.display:                   
-  cv2.destroyAllWindows()
-  
-maxFPS = math.floor(1.0/((time.time() - startTime) / 100.0))
-print(" -> able to create and encode %d frames per second with %dx%d (Quality=%d)" % (maxFPS, WIDTH,HEIGHT,QUALITY))
+  def finish(self):
+    self.logger.info('Disconnected')
+    return socketserver.BaseRequestHandler.finish(self)
 
 
-
-# opens a connection
-#print("[%s] - Now, openning stream to %s:%d....\n\n" % (CAMERA,ADDR,PORT))
-#s##tream = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#3stream.connect((ADDR, PORT))
-#print("[%s] - Successfully connected to stream on port %d" % (CAMERA, PORT))
-# reading and processing loop (3 frames)
-#frameCount = 3
-
-#while frameCount > 0:
-  # read header
-#  width = int.from_bytes(receivedEntireMessage(stream, 4), "little")
-#  height = int.from_bytes(receivedEntireMessage(stream, 4), "little")
-#  colorLen = int.from_bytes(receivedEntireMessage(stream, 4), "little") # 0 if no color frame
-#  depthLen = int.from_bytes(receivedEntireMessage(stream, 4), "little") # 0 if no depth frame
-  
-#  print("Got frame with (w=%d,h=%d,color=%d,depth=%d)" % (width, height, colorLen, depthLen))
-
-  # read color if enabled
-#  if (colorLen > 0):
-#    colorData = receivedEntireMessage(stream, colorLen)
-
-  # read depth if enabled
-#  if (depthLen > 0):
-#    depthData = receivedEntireMessage(stream, depthLen)
-
-  # show color if enabled
-#  if (colorLen > 0):
-#    numpyarr = np.fromstring(colorData, np.uint8)
-#    frame = cv2.imdecode(numpyarr, cv2.IMREAD_COLOR)
-#    cv2.imwrite("%s-color-%d.jpeg" % (CAMERA,3-frameCount), frame)
-#    cv2.imshow('Color', frame)
+class JPEGStreamerServer(socketserver.TCPServer):
+  '''Streams JPEGs to all connected clients
+     All JPEGs streamed will have the same resolution as backgroundImage
+     
+     @param backgroundImage numpy array with the image being encoded in the background (expecting BGR)
+     @param fps frame rate
+     @param preview whether or not we should call imshow to show what is being encoded
+     
+     Optional parameters:
+     @param quality JPEG quality (defaults to 90)
+     @param fontHeight how many pixels the font should take (defaults to 20)
+     @param runMAXFPSTest if true, runs a loop of 100 frames to check for the maximum FPS we can create and encode JPEGs
+  '''
+  def __init__(self, server_address, backgroundImage, fps, preview, quality=90, fontHeight=20, runMAXFPSTest=True, handler_class=JPEGStreamerClientHandler):
+    socketserver.TCPServer.__init__(self, server_address, handler_class)
+    self.logger = logging.getLogger('JPEGSTreamerServer')
+    self.logger.info('Listening at %s:%d' % (server_address[0], server_address[1]))
     
+    # prepares to handle clients
+    self._clients = set()
+    self._backgroundImage = np.copy(backgroundImage)
+    self._fontHeight = fontHeight
+    self._imageWidth  = self._backgroundImage.shape[1]
+    self._imageHeight = self._backgroundImage.shape[0]
+    self._setupImageSettings()
+    self._fps = fps
+    self._jpegQuality = quality
+    self._preview = preview
+    
+    # finds the max FPS for the server
+    if runMAXFPSTest:
+      self.FindMaxFrameRate()
+    return
+    
+  def _setupImageSettings(self):
+    timeNowStr = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+    self._fontSize = cv2.getFontScaleFromHeight(cv2.FONT_HERSHEY_SIMPLEX, self._fontHeight , 2)
+    self._textY = int(self._imageHeight/2 - self._fontHeight /2)
+    self._textX = int(self._imageWidth/2 - cv2.getTextSize(timeNowStr, cv2.FONT_HERSHEY_SIMPLEX, self._fontSize,2)[0][0]/2)
+  
+  def getEncodedJPEG(self):
+    '''returns a buffef with an encoded JPEG'''
+    timeNowStr = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+    image = cv2.putText(np.copy(self._backgroundImage), timeNowStr, (self._textX, self._textY), cv2.FONT_HERSHEY_SIMPLEX,  
+                     self._fontSize, (255, 255, 255), 2, cv2.LINE_AA)   
+    encimg = simplejpeg.encode_jpeg(image, self._jpegQuality, 'BGR') # faster alternative to OPENCV: result, encimg = cv2.imencode('.jpg', image)             
+    if self._preview:                   
+      cv2.imshow('time',image)
+      cv2.waitKey(1)
+    return encimg
+  
+  def FindMaxFrameRate(self):
+    self.logger.info(" -> Testing max FPS (preview=%s)" % ("yes" if self._preview else "no"))
+    startTime = time.time()
+    for i in range(100):
+      self.getEncodedJPEG()
 
-  # show depth if enabled
-#  if (depthLen > 0):
-#    deptharray = np.fromstring(depthData, np.uint16).reshape(height,width)
-#    with open("%s-depth-%d.bin" % (CAMERA,3-frameCount), "wb") as f:
-#      np.save(f, deptharray)
-#    cv2.imshow('Depth', cv2.normalize(deptharray, dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX))
+    maxFPS = math.floor(1.0/((time.time() - startTime) / 100.0))
+    self.logger.info(" -> able to create and encode %d frames per second with %dx%d (Quality=%d)" % (maxFPS, self._imageWidth,self._imageHeight,self._jpegQuality))
 
-  # keeps going
-#  frameCount -= 1
+    if self._fps > maxFPS:
+      self.logger.info("Setting FPS to %d (%d is greater than maximum we can achieve)"%(maxFPS,self._fps))
+      self._fps = maxFPS
+      
+  def JPEGStreamingLoop(self):
+    loopForever = True
+    while loopForever:
+      try:
+        start = time.time()         # check how long it takes to encode and stream frame
+        jpg = self.getEncodedJPEG() # creates JPEG
+        
+        for client in self._clients:
+          client.sendMessage(jpg)
+        
+      except KeyboardInterrupt:
+        self.logger.info("CTRL+C requested!")
+        loopForever = False
+      except:
+        self.logger.error("Unhandled exception!")
+        loopForever = False
 
-#  if (cv2.waitKey(1) & 0xFF == 27):
-#    break
+#
+# ------------------------------------------------------------------------------------------------------------------------------------------------------
+#
 
-#stream.close()
+
+
+if __name__ == '__main__':
+  #
+  # Parsing script arguments
+  #
+
+  parser = argparse.ArgumentParser(description="TCPServer that streams a JPEG of current the current time")
+  parser.add_argument('width', nargs='?', type=int, help="image width", default=800)
+  parser.add_argument('height', nargs='?', type=int, help="image height", default=600)
+  parser.add_argument('fps', nargs='?', type=int, help="desired frame rate", default=30)
+  parser.add_argument('port', nargs='?', type=int, help="TCPServer's port (default=50000)", default=50000)
+  parser.add_argument('--background', nargs='?', type=str, help="desired background image", default="background.jpg")
+  parser.add_argument('--display', action='store_true', help="If set, shows the clock to the user (Warning: lowers max FPS)", default=False)
+  parser.add_argument('--quality', nargs='?', type=int, help="desired JPEG quality (default=90)", default=90)
+
+  args = parser.parse_args()
+
+  #
+  # Setting up variables that we use in the rest of the script
+  #
+
+  PORT = args.port
+  ADDR = "0.0.0.0"
+  WIDTH = args.width
+  if WIDTH < 0:
+    WIDTH = 640
+
+  HEIGHT = args.height 
+  if HEIGHT < 0:
+    HEIGHT = 480
+    
+  QUALITY = args.quality
+  FPS = args.fps
+
+  mainLogger.info("Welcome to StreamclockJPEG!")
+  mainLogger.info("-"*20)
+
+  # Loads background image
+  mainLogger.info(" Loading background image %s" % args.background)
+  backgroundImage = cv2.imread(args.background, 1)
+  backgroundImageScaled = cv2.resize(backgroundImage, (WIDTH, HEIGHT), cv2.INTER_LANCZOS4)
+  
+  #
+  # Starting server
+  #
+  
+  address = (ADDR, PORT)
+  server = JPEGStreamerServer(address, backgroundImageScaled, FPS, args.display, QUALITY)
+
+  # listening loop
+  t = threading.Thread(target=server.serve_forever)
+  t.setDaemon(True) # don't hang on exit
+  t.start()
+  
+  
+  # streaming loop
+  mainLogger.info("Starting streamer - press CTRL+C to stop at any time!")
+  server.JPEGStreamingLoop()
+  
+
+
+
