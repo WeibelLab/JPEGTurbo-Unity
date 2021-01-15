@@ -489,7 +489,7 @@ public class TCPClientBehaviour : MonoBehaviour
         while (offset < buffer.Length)
         {
             int bytesRead = stream.Read(buffer, offset, readLength - offset); // read from stream
-            ++BytesReceived;
+            BytesReceived += bytesRead;
 
             // "  If the remote host shuts down the connection, and all available data has been received,
             // the Read method completes immediately and return zero bytes. "

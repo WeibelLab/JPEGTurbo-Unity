@@ -297,11 +297,14 @@ public class JPEGStreamReceiver : MonoBehaviour
                     {
 
                         // skips frames that we might have accumulated over time (frame will have the last frame)
-                        while (tmpFrameQ.Count > 0)
+                        while (tmpFrameQ.Count > 1)
                         {
                             ++droppedFrames;
                             frame = tmpFrameQ.Dequeue();
                         }
+
+                        // gets the lastest frame
+                        frame = tmpFrameQ.Dequeue();
 
                         // while we have frames, decode them
                         int width = 0, height = 0;
