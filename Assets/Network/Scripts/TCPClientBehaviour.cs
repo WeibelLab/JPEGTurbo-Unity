@@ -180,6 +180,12 @@ public class TCPClientBehaviour : MonoBehaviour
 
     private void OnEnable()
     {
+        MessagesDropped = 0;
+        MessagesReceived = 0;
+        BytesReceived = 0;
+        BytesDropped = 0;
+        ConnectionErrors = 0;
+
         if (ConnectOnEnable)
             StartConnection();
     }
