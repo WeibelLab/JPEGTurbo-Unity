@@ -37,55 +37,12 @@ logging.basicConfig(level=logging.INFO,
 mainLogger = logging.getLogger('Main')
 
 
-#
-# Define TCPServer class we use for streaming
-#
 
-class JPEGStreamerClientHandler(socketserver.BaseRequestHandler):
-  '''
-  Handles a connection to our TCPServer.
-  '''
-  def __init__(self, request, client_address, server):
-    self.logger = logging.getLogger('Client %s:%d'%(self.client_ip, self.client_port))
-    self.client_ip = client_address[0]
-    self.client_port = client_address[1]
-    self.logger.info('Connected')
-    self.startTime = time.time()
-    socketserver.BaseRequestHandler.__init__(self, request, client_address, server)
-    return
-      
-  def handle(self):
-    '''Invoked when the client receives a message (does nothing)'''
-    # Echo the back to the client 
-    #data = self.request.recv(1024)
-    #self.logger.debug('recv()->"%s"', data)
-    #self.request.send(data)
-    return
-    
-  def sendMessage(self, frame):
-    '''sends the entire frame to the client. Returns the number of bytes sent (if less than len(frame) than client disconnected)'''
-    
-    # sends message length
-    self.request.sendall(len(frame).to_bytes(4, "little"))
-    
-    # sends the entire message using send (instead of sendall) to avoid timeout issues
-    totalsent = 0
-    while totalsent < len(frame):
-      sent = self.request.send(frame[totalsent:])
-      if sent == 0:
-          raise RuntimeError("socket connection broken after sending ")
-      totalsent = totalsent + sent
-    return len(frame)
-    
-  def finish(self):
-    self.logger.info('Disconnected')
-    return socketserver.BaseRequestHandler.finish(self)
-
-
-class JPEGStreamerServer(socketserver.TCPServer):
+class JPEGStreamerServer():
   '''Streams JPEGs to all connected clients
      All JPEGs streamed will have the same resolution as backgroundImage
      
+     @param server_address tuple with ip:port (e.g., 0.0.0.0:5000)
      @param backgroundImage numpy array with the image being encoded in the background (expecting BGR)
      @param fps frame rate
      @param preview whether or not we should call imshow to show what is being encoded
@@ -95,13 +52,19 @@ class JPEGStreamerServer(socketserver.TCPServer):
      @param fontHeight how many pixels the font should take (defaults to 20)
      @param runMAXFPSTest if true, runs a loop of 100 frames to check for the maximum FPS we can create and encode JPEGs
   '''
-  def __init__(self, server_address, backgroundImage, fps, preview, quality=90, fontHeight=20, runMAXFPSTest=True, handler_class=JPEGStreamerClientHandler):
-    socketserver.TCPServer.__init__(self, server_address, handler_class)
+  def __init__(self, server_address, backgroundImage, fps, preview, quality=90, fontHeight=20, runMAXFPSTest=True):
     self.logger = logging.getLogger('JPEGSTreamerServer')
     self.logger.info('Listening at %s:%d' % (server_address[0], server_address[1]))
     
+    # create a socket object
+    self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    self.serverSocket.bind((server_address[0], server_address[1]))
+    self.serverSocket.listen(5)
+    
     # prepares to handle clients
     self._clients = set()
+    
+    # prepares backgroud
     self._backgroundImage = np.copy(backgroundImage)
     self._fontHeight = fontHeight
     self._imageWidth  = self._backgroundImage.shape[1]
@@ -110,6 +73,10 @@ class JPEGStreamerServer(socketserver.TCPServer):
     self._fps = fps
     self._jpegQuality = quality
     self._preview = preview
+    
+    # makes sure that clients won't get disconnected if they don't send anything
+    # (see https://docs.python.org/3/library/socketserver.html#socketserver.BaseServer.timeout)
+    self.timeout = None
     
     # finds the max FPS for the server
     if runMAXFPSTest:
@@ -146,22 +113,72 @@ class JPEGStreamerServer(socketserver.TCPServer):
       self.logger.info("Setting FPS to %d (%d is greater than maximum we can achieve)"%(maxFPS,self._fps))
       self._fps = maxFPS
       
+  def WaitForClients(self):
+    # listening loop
+    self.clientThread = threading.Thread(target=self.serve_forever)
+    self.clientThread.setDaemon(True)
+    self.clientThread.start()
+    
+  def serve_forever(self):
+    while True:
+      # accept any new connection
+      sockt, addr = self.serverSocket.accept()
+      self.logger.info("Client connected %s:%d" % addr)
+      self._clients.add((sockt, addr))
+      
+  def sendMessageToClient(self, socket, message):
+    '''sends the entire frame to the client. Returns the number of bytes sent (if less than len(frame) than client disconnected)'''
+    
+    try:
+      # sends message length
+      socket.sendall(len(message).to_bytes(4, "little"))
+      
+      # sends the entire message using send (instead of sendall) to avoid timeout issues
+      totalsent = 0
+      while totalsent < len(message):
+        sent = socket.send(message[totalsent:])
+        if sent == 0:
+            return totalsent
+        totalsent = totalsent + sent
+      return len(message)
+    
+    except ConnectionAbortedError as e:
+      return 0
+    except:
+      return 0
+    
+     
   def JPEGStreamingLoop(self):
     loopForever = True
+    maxTimePerFrame = (1.0 / self._fps) - 0.005
     while loopForever:
       try:
-        start = time.time()         # check how long it takes to encode and stream frame
+        startTime = time.time()         # check how long it takes to encode and stream frame
         jpg = self.getEncodedJPEG() # creates JPEG
         
+        removalSet = set()
+        
         for client in self._clients:
-          client.sendMessage(jpg)
+          if self.sendMessageToClient(client[0],jpg) < len(jpg):
+            removalSet.add(client)
+            
+        for client in removalSet:
+          self._clients.remove(client)
+          self.logger.info("Client disconnected %s:%d" % client[1])
+          
+        remaingSleepTime = maxTimePerFrame - (time.time() - startTime)
+        if remaingSleepTime > 0:
+          time.sleep(remaingSleepTime)
+        else:
+          self.logger.info("We took too long (%f sec instead of %f sec)" % (maxTimePerFrame-remaingSleepTime,maxTimePerFrame))
         
       except KeyboardInterrupt:
         self.logger.info("CTRL+C requested!")
         loopForever = False
-      except:
-        self.logger.error("Unhandled exception!")
-        loopForever = False
+      #except:
+      #  self.logger.error("Unhandled exception!")
+      #  loopForever = False
+      
 
 #
 # ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -217,11 +234,8 @@ if __name__ == '__main__':
   address = (ADDR, PORT)
   server = JPEGStreamerServer(address, backgroundImageScaled, FPS, args.display, QUALITY)
 
-  # listening loop
-  t = threading.Thread(target=server.serve_forever)
-  t.setDaemon(True) # don't hang on exit
-  t.start()
-  
+  # listening loop (waits for new connections)  - runs in a separate thread
+  server.WaitForClients()
   
   # streaming loop
   mainLogger.info("Starting streamer - press CTRL+C to stop at any time!")
