@@ -9,21 +9,27 @@ using UnityEngine.Events;
 
 /// <summary>
 /// TCP Client for raw bytes[] implementing a basic Length-Value protocol
-/// (This TCP Client is a stripped down version of https://github.com/WeibelLab/Comms-Unity)
+/// (This TCP Client is a stripped down version of https://github.com/WeibelLab/Comms-Unity
+///  We recommend using the package WeibelLab-Comms for networking, but, for basic tests
+///  you can use this TCPClient)
+///
+/// This TCP client wrapper for Unity implements a basic LENGTH-VALUE protocol
+/// i.e., it expects a 4-byte little endian integer that tells it the length of 
+///       the next message in bytes.
+///
 /// 
-/// Authors: Danilo Gaques, Tommy Sharkey
+/// Authors: Danilo Gaques (gasques@ucsd.edu), Tommy Sharkey (tsharkey@ucsd.edu)
 /// </summary>
 /// 
 public class TCPClientBehaviour : MonoBehaviour
 {
-    // Host
     [Tooltip("Name to use in the logs")]
     public string SocketName;
 
-    [Header("TCPServer")]
-    [Tooltip("TCPServer hostname")]
+    [Header("TCPClient")]
+    [Tooltip("TCPClient hostname")]
     public string HostName;
-    [Tooltip("TCPServer port")]
+    [Tooltip("TCPClient port")]
     public int HostPort;
 
     [Tooltip("Check this box if the socket should connect when the script / game object is enabled / first starts")]

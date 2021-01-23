@@ -8,8 +8,8 @@ using System.Runtime.InteropServices;
 /// If you are interested in decoding or encoding JPEGs, consider the following classes:
 /// 
 /// Basic classes:
-/// - JPEGTurboDecoder: jpeg encoder wrap
-/// - (todo) JPEGTurboEncoder: jpeg decoder wrap
+/// - JPEGTurboDecoder: jpeg decoder wrap
+/// - (todo) JPEGTurboEncoder: jpeg encoder wrap
 /// 
 /// Application-specific classes:
 /// - JPEGStreamReceiver: receives a JPEG over TCP and decodes it
