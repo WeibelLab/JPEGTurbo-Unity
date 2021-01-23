@@ -86,7 +86,6 @@ public class TCPClientBehaviour : MonoBehaviour
 
     // Shared
     private Thread listenerThread;
-    private bool NeedToReconnect = false;
 
     // name used for the purpose of logging
     private string LogName;

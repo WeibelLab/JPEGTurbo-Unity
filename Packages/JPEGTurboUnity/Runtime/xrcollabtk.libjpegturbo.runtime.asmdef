@@ -1,0 +1,22 @@
+{
+    "name": "edu.ucsd.weibeillab.libjpegturbounity",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [
+        "iOS",
+        "LinuxStandalone64",
+        "Lumin",
+        "macOSStandalone",
+        "PS4",
+        "Switch",
+        "tvOS",
+        "WebGL"
+    ],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
