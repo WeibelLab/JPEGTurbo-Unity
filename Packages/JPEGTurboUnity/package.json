@@ -1,0 +1,24 @@
+{
+  "name": "edu.ucsd.weibellab.libjpegturbo",
+  "version": "1.0.0",
+  "displayName": "LibJPEGTurbo Unity",
+  "description": "Fast, Multithreaded JPEG decoder and encoder for Unity with support for Hololens1, Hololens2, and Oculus Quest! Basically, a libjpegturbo wrapper with compiled libraries for Windows, Hololens1, HoloLens2 (x86, x64, UWP x86, UWP x64, UWP ARM, UWPARM64) and Android / Oculus Quest (ARM 7)",
+  "unity": "2019.1",
+  "dependencies": {
+ },
+ "keywords": [
+    "turbojpeg",
+    "texture",
+    "jpeg",
+		"encoder",
+		"decoder",
+		"hololens",
+		"oculus",
+		"quest"
+  ],
+  "author": {
+    "name": "Danilo Gasques",
+    "email": "gasques@ucsd.edu",
+    "url": "https://danilogasques.com"
+  }
+}
