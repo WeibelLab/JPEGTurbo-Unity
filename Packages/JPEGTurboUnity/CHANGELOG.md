@@ -2,7 +2,7 @@
 
 ## [1.0.1] - 2021-01-23
 
-JPEGStreamReceiver gives an option for auto-scaling the mesh based on the texture dimensions
+JPEGStreamReceiver gives an option for auto-scaling transform displaying JPEG based on the JPEG's aspect ratio
 
 ## [1.0.0] - 2021-01-23
 
