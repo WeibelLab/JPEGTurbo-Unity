@@ -1,5 +1,5 @@
 {
-    "name": "edu.ucsd.weibeillab.libjpegturbounity",
+    "name": "xrcollabtk.libjpegturbo.runtime",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [

@@ -5,6 +5,13 @@ using UnityEngine;
 
 namespace xrcollabtk
 {
+    [Serializable]
+    public enum scaleMeshAxis
+    {
+        X,
+        Y,
+        Z
+    }
 
     /**
      *
@@ -14,17 +21,42 @@ namespace xrcollabtk
      * - Add JPEGStreamReceiver to a Transform (e.g.: plane)
      * -- Associate a MeshRenderer with MeshToUpdate
      * - From another script, invoke NewFrameArrived to update the texture associated with MeshRenderer
+     * 
+     * - Scaling the mesh to match the JPEG's aspect ratio:
+     * 
+     *   if the property `scaleMesh` is true, then this script will automatically rescale
+     * the transform holding MeshToUpdate so that its aspect ratio matches the last JPEG
+     * decoded.
+     * 
+     *   Note: scaling the transform will never exced the original dimensions given to
+     *   the transform. The current approach only scales down one of the dimensions (either
+     *   the one representing width or height) depending on the **original size**
      *
      * History:
-     * - v1.0.0
+     * - v1.0.1: 
+     * -- scale mesh: scales the transform holding MeshRenderer to match texture aspect ratio.
+     * 
+     * - v1.0.0: first version
      *
      * author: Danilo Gasques (gasques@ucsd.edu)
      */
     public class JPEGStreamReceiver : MonoBehaviour
     {
-
+        [Header("Mesh and Texture")]
         [Tooltip("MeshRenderer that this script will update - if not set, JPEGStreamReceiver looks for a MeshRenderer in the same transform")]
         public MeshRenderer MeshToUpdate;
+
+        [Tooltip("If true, it will scale the mesh so that it has the same aspect ratio as the JPEG being decoded")]
+        public bool scaleMesh = false;
+
+        [Tooltip("Axis that can be scale to match texture aspect ratio (horizontal / width axis)")]
+        public scaleMeshAxis widthAxis = scaleMeshAxis.X;
+
+        [Tooltip("Axis that can be scale to match texture aspect ratio (vertical / height axis)")]
+        public scaleMeshAxis heightAxis = scaleMeshAxis.Z;
+
+        float originalWidthAxisScale, originalHeightAxisScale;
+
 
         //[Tooltip("If UpdateTexture is true, then the associated MeshRenderer will have its texture updated when a JPEG is decoded")]
         //public bool UpdateTexture = true;
@@ -100,6 +132,11 @@ namespace xrcollabtk
                 else
                 {
                     MeshToUpdate.material.mainTexture = videoTexture;
+
+                    // saves original scale dimensions
+                    originalWidthAxisScale = GetAxisDimension(MeshToUpdate.transform, widthAxis);
+                    originalHeightAxisScale = GetAxisDimension(MeshToUpdate.transform, heightAxis);
+
                     SetTexture = true;
                 }
             }
@@ -241,10 +278,35 @@ namespace xrcollabtk
                             videoTexture = new Texture2D(textureWidth, textureHeight, TextureFormat.RGB24, false);
                             if (MeshToUpdate != null)
                                 MeshToUpdate.material.mainTexture = videoTexture;
+
+                            // we set the texture
+                            SetTexture = true;
                         }
 
                         // we have to resize the interface
-                        SetTexture = true;
+                        if (scaleMesh && MeshToUpdate != null)
+                        {
+                            Transform t = MeshToUpdate.transform;
+
+                            // does the aspect ratio differ by any chance?
+                            float aspectRatio = ((float)(textureWidth)) / ((float)(textureHeight));
+                            float displayAspectRatio = originalWidthAxisScale / originalHeightAxisScale;
+
+                            // aspect ratio doesn't match? scale panel to fill the texture on one of the dimensions
+                            if (Math.Abs(displayAspectRatio - aspectRatio) > 0.001f)
+                            {
+                                if (displayAspectRatio > aspectRatio) // 
+                                {
+                                   // fills display height and scales down width
+                                   SetAxisDimension(t, widthAxis, aspectRatio * originalHeightAxisScale);
+                                 
+                                } else // displayAspectRatio < aspectRatio
+                                {
+                                    SetAxisDimension(t, heightAxis, (1.0f / aspectRatio) * originalWidthAxisScale);
+                                }
+                            }
+                        }
+                        
 
                         Debug.Log(string.Format("[JPEGStreamReceiver@{0}] Allocated a texture buffer of {1}x{2}", LogName, textureWidth, textureHeight));
                     }
@@ -450,6 +512,43 @@ namespace xrcollabtk
         }
 
 
+        void SetAxisDimension(Transform t, scaleMeshAxis axis, float scale)
+        {
+            Vector3 newScale = t.localScale;
+            switch (axis)
+            {
+                case scaleMeshAxis.X:
+                    newScale.x = scale;
+                    break;
+
+                case scaleMeshAxis.Y:
+                    newScale.y = scale;
+                    break;
+
+                case scaleMeshAxis.Z:
+                    newScale.z = scale;
+                    break;
+            }
+            t.localScale = newScale;
+        }
+
+        float GetAxisDimension(Transform t, scaleMeshAxis axis)
+        {
+            switch (axis)
+            {
+                case scaleMeshAxis.X:
+                    return t.localScale.x;
+
+                case scaleMeshAxis.Y:
+                    return t.localScale.y;
+
+                case scaleMeshAxis.Z:
+                    return t.localScale.z;       
+            }
+            return 1.0f;
+        }
+
+
         #region FrameSettings definition
         /// <summary>
         /// FrameSettings works as a temporary buffer for frames decoded by JPEGStreamReceiver
@@ -474,5 +573,6 @@ namespace xrcollabtk
         }
         #endregion
     }
+
 
 }
