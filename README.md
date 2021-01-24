@@ -4,6 +4,13 @@
 A libjpeg-turbo wrapper for Unity - Runs on HoloLens and Oculus Quest
 
 
+
+# Roadmap
+
+- [x] Decoding JPEGs to RGB
+- [ ] Decoding JPEGs to YUV (faster as YUV can be transformed to RGB in a shader
+- [ ] Encoding JPEG
+
 # Installing JPEGTurbo-Unity
 
 There are two ways to install JPEGTurbo-Unity: 1) Downloading and importing the assets package; 2) Installing JPEGTurbo-Unity through Unity's Package Manager (**Recommended**).
