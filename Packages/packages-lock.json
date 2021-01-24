@@ -7,7 +7,7 @@
       "dependencies": {},
       "url": "https://packages.unity.com"
     },
-    "xrcollabtk.libjpegturbo": {
+    "xrcollabtk.jpegturbounity": {
       "version": "file:JPEGTurboUnity",
       "depth": 0,
       "source": "embedded",

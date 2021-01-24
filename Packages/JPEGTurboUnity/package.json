@@ -1,7 +1,7 @@
 {
-  "name": "xrcollabtk.libjpegturbo",
+  "name": "xrcollabtk.jpegturbounity",
   "version": "1.0.1",
-  "displayName": "XRCollab Toolkit LibJPEGTurbo",
+  "displayName": "XRCollabTK JPEGTurboUnity",
   "description": "Fast, Multithreaded JPEG decoder and encoder for Unity with support for Hololens1, Hololens2, and Oculus Quest! Basically, a libjpegturbo wrapper with compiled libraries for Windows, Hololens1, HoloLens2 (x86, x64, UWP x86, UWP x64, UWP ARM, UWPARM64) and Android / Oculus Quest (ARM 7)",
   "unity": "2019.4",
   "keywords": [
