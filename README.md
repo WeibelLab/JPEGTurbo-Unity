@@ -17,7 +17,7 @@ There are two ways to install JPEGTurbo-Unity: 1) Downloading and importing the 
 If you decRegistering the Mixed Reality component server
 
 ## Downloading and importing the assets package
-Please, head to the [Releases](releases) webpage to download the latest Unity package for JPEGTurbo-Unity. (TODO)
+Please, head to the [Releases](https://github.com/WeibelLab/JPEGTurbo-Unity/releases) webpage to download the latest Unity package for JPEGTurbo-Unity. (TODO)
 
 ## Installing through the Unity Package Manager
 
