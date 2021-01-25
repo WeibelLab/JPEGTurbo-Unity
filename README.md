@@ -21,9 +21,12 @@ Please, head to the [Releases](releases) webpage to download the latest Unity pa
 
 ## Installing through the Unity Package Manager
 
-(TODO)
+While this repository remains `private`, we highly recommend using the following URL on Unity:
+`https://a64476f1ebd7960aedac3357a4ed4bd74b097d51:x-oauth-basic@github.com/WeibelLab/JPEGTurbo-Unity.git`
 
-Follow instructions from https://docs.unity3d.com/Manual/upm-ui-giturl.html
+The above URL uses a safe authentication route that won't require typping your username or password. Support for that URL will remain even after this repository goes public.
+
+Using the URL mentioned above, follow instructions from https://docs.unity3d.com/Manual/upm-ui-giturl.html
 
 
 # Projects using JPEGTurbo-Unity
