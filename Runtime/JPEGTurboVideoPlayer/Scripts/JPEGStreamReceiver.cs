@@ -295,9 +295,13 @@ namespace xrcollabtk
                             // aspect ratio doesn't match? scale panel to fill the texture on one of the dimensions
                             if (Math.Abs(displayAspectRatio - aspectRatio) > 0.001f)
                             {
+                                // reset
+                                SetAxisDimension(t, widthAxis, originalWidthAxisScale);
+                                SetAxisDimension(t, heightAxis, originalHeightAxisScale);
+                            
                                 if (displayAspectRatio > aspectRatio) // 
                                 {
-                                   // fills display height and scales down width
+                                   // fills display height and scales down width                                   
                                    SetAxisDimension(t, widthAxis, aspectRatio * originalHeightAxisScale);
                                  
                                 } else // displayAspectRatio < aspectRatio
