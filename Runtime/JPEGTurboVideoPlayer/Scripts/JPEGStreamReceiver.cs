@@ -33,6 +33,9 @@ namespace xrcollabtk
      *   the one representing width or height) depending on the **original size**
      *
      * History:
+     * - v1.0.2:
+     * -- Using an array of meshs to update (instead of a single mesh)
+     * 
      * - v1.0.1: 
      * -- scale mesh: scales the transform holding MeshRenderer to match texture aspect ratio.
      * 
@@ -42,21 +45,80 @@ namespace xrcollabtk
      */
     public class JPEGStreamReceiver : MonoBehaviour
     {
+
+        [Serializable]
+        public class MeshToUpdate
+        {
+
+            [Tooltip("If true, it will scale the mesh so that it has the same aspect ratio as the JPEG being decoded")]
+            public bool scaleMesh = false;
+            [Tooltip("Axis that can be scale to match texture aspect ratio (horizontal / width axis)")]
+            public scaleMeshAxis widthAxis = scaleMeshAxis.X;
+            [Tooltip("Axis that can be scale to match texture aspect ratio (vertical / height axis)")]
+            public scaleMeshAxis heightAxis = scaleMeshAxis.Y;
+            [Tooltip("MeshRenderer that this script will update - if not set, JPEGStreamReceiver looks for a MeshRenderer in the same transform")]
+            public MeshRenderer mesh;
+
+            public float originalWidthAxisScale, originalHeightAxisScale;
+
+            public MeshToUpdate()
+            {
+                scaleMesh = false;
+                widthAxis = scaleMeshAxis.X;
+                heightAxis = scaleMeshAxis.Y;
+                originalWidthAxisScale = 1.0f;
+                originalHeightAxisScale = 1.0f;
+            }
+
+        /// Changes the scale dimension on a single axis (X,Y, or Z)
+        public void SetAxisDimension(scaleMeshAxis axis, float scale)
+            {
+                if (mesh != null && mesh.transform != null)
+                { 
+                    Vector3 newScale = mesh.transform.localScale;
+                    switch (axis)
+                    {
+                        case scaleMeshAxis.X:
+                            newScale.x = scale;
+                            break;
+
+                        case scaleMeshAxis.Y:
+                            newScale.y = scale;
+                            break;
+
+                        case scaleMeshAxis.Z:
+                            newScale.z = scale;
+                            break;
+                    }
+                    mesh.transform.localScale = newScale;
+                }
+            }
+
+            /// Gets the scale dimension on a single axis (X,Y, or Z)
+            public float GetAxisDimension(scaleMeshAxis axis)
+            {
+                if (mesh != null && mesh.transform != null)
+                {
+                    switch (axis)
+                    {
+                        case scaleMeshAxis.X:
+                            return mesh.transform.localScale.x;
+
+                        case scaleMeshAxis.Y:
+                            return mesh.transform.localScale.y;
+
+                        case scaleMeshAxis.Z:
+                            return mesh.transform.localScale.z;
+                    }
+                    return 1.0f;
+                }
+                return 1.0f;
+            }
+        };
+
         [Header("Mesh and Texture")]
         [Tooltip("MeshRenderer that this script will update - if not set, JPEGStreamReceiver looks for a MeshRenderer in the same transform")]
-        public MeshRenderer MeshToUpdate;
-
-        [Tooltip("If true, it will scale the mesh so that it has the same aspect ratio as the JPEG being decoded")]
-        public bool scaleMesh = false;
-
-        [Tooltip("Axis that can be scale to match texture aspect ratio (horizontal / width axis)")]
-        public scaleMeshAxis widthAxis = scaleMeshAxis.X;
-
-        [Tooltip("Axis that can be scale to match texture aspect ratio (vertical / height axis)")]
-        public scaleMeshAxis heightAxis = scaleMeshAxis.Z;
-
-        float originalWidthAxisScale, originalHeightAxisScale;
-
+        public MeshToUpdate[] meshesToUpdate;
 
         //[Tooltip("If UpdateTexture is true, then the associated MeshRenderer will have its texture updated when a JPEG is decoded")]
         //public bool UpdateTexture = true;
@@ -64,7 +126,7 @@ namespace xrcollabtk
         // if true, it means that our texture was set on a MeshRenderer
         private bool SetTexture = false;
 
-        #region Private info related to texture
+        #region Private info related to JPEG decoding and textures to display JPEG
         Texture2D videoTexture;
         public int textureWidth, textureHeight;
 
@@ -80,7 +142,6 @@ namespace xrcollabtk
         System.Object frameSwapLock = new System.Object();
 
         #endregion
-
 
         [Tooltip("libjpeg-turbo is already fast, but it can run faster! Notice: Faster decoding can causes quality drops")]
         public bool FasterDecoding = false;
@@ -118,27 +179,36 @@ namespace xrcollabtk
             {
                 videoTexture = new Texture2D(1, 1);
 
-                // not set?
-                if (MeshToUpdate == null)
+                // no meshes set? then we define an array with a single mesh with the one attached to this object (if we have one)
+                if (meshesToUpdate == null && GetComponent<MeshRenderer>() != null)
                 {
-                    MeshToUpdate = GetComponent<MeshRenderer>();
+                    meshesToUpdate = new MeshToUpdate[0];
+                    meshesToUpdate[0].mesh = GetComponent<MeshRenderer>();
+                    meshesToUpdate[0].scaleMesh = true;
                 }
 
-                // update texture
-                if (MeshToUpdate == null)
+                // no meshes at all?
+                if (meshesToUpdate == null)
                 {
                     Debug.LogError(string.Format("[JPEGStreamReceiver@{0}] Could not find a suitable MeshRenderer... Make sure this script is added to an object that has a mesh", LogName));
                 }
                 else
                 {
-                    MeshToUpdate.material.mainTexture = videoTexture;
+                    Debug.Log(string.Format("[JPEGStreamReceiver@{0}] Updating a total of {1} mesh(es) with JPEGS", LogName, meshesToUpdate.Length));
+                    foreach (MeshToUpdate m in meshesToUpdate)
+                    {
+                        // sets video mesh
+                        m.mesh.material.mainTexture = videoTexture;
 
-                    // saves original scale dimensions
-                    originalWidthAxisScale = GetAxisDimension(MeshToUpdate.transform, widthAxis);
-                    originalHeightAxisScale = GetAxisDimension(MeshToUpdate.transform, heightAxis);
+                        // saves original scale dimensions to scale it back
+                        m.originalWidthAxisScale = m.GetAxisDimension(m.widthAxis);
+                        m.originalHeightAxisScale = m.GetAxisDimension(m.heightAxis);
+                    }                    
 
                     SetTexture = true;
                 }
+
+
             }
 
             // creates decoder
@@ -275,49 +345,65 @@ namespace xrcollabtk
                         // we have to create a new videoTexture
                         if (videoTexture != null)
                         {
+                            // creates new video texture
                             videoTexture = new Texture2D(textureWidth, textureHeight, TextureFormat.RGB24, false);
-                            if (MeshToUpdate != null)
-                                MeshToUpdate.material.mainTexture = videoTexture;
 
+                            // do we have any meshes we want to update?
+                            if (meshesToUpdate != null)
+                            {
+                                foreach (MeshToUpdate m in meshesToUpdate)
+                                {
+                                    // updates video mesh
+                                    m.mesh.material.mainTexture = videoTexture;
+                                }
+                            }
                             // we set the texture
                             SetTexture = true;
                         }
 
-                        // we have to resize the interface
-                        if (scaleMesh && MeshToUpdate != null)
+                        // let everybody know that we have a new video texture
+                        Debug.Log(string.Format("[JPEGStreamReceiver@{0}] Allocated a texture buffer of {1}x{2}", LogName, textureWidth, textureHeight));
+
+                        // we have to resize meshes to keep up with aspect ratio
+                        if (meshesToUpdate != null)
                         {
-                            Transform t = MeshToUpdate.transform;
-
-                            // does the aspect ratio differ by any chance?
-                            float aspectRatio = ((float)(textureWidth)) / ((float)(textureHeight));
-                            float displayAspectRatio = originalWidthAxisScale / originalHeightAxisScale;
-
-                            // aspect ratio doesn't match? scale panel to fill the texture on one of the dimensions
-                            if (Math.Abs(displayAspectRatio - aspectRatio) > 0.001f)
+                            foreach (MeshToUpdate m in meshesToUpdate)
                             {
-                                // reset
-                                SetAxisDimension(t, widthAxis, originalWidthAxisScale);
-                                SetAxisDimension(t, heightAxis, originalHeightAxisScale);
-                            
-                                if (displayAspectRatio > aspectRatio) // 
-                                {
-                                   // fills display height and scales down width                                   
-                                   SetAxisDimension(t, widthAxis, aspectRatio * originalHeightAxisScale);
-                                 
-                                } else // displayAspectRatio < aspectRatio
-                                {
-                                    SetAxisDimension(t, heightAxis, (1.0f / aspectRatio) * originalWidthAxisScale);
+                                if (m.scaleMesh)
+                                { 
+                                    // does the aspect ratio differ by any chance?
+                                    float aspectRatio = ((float)(textureWidth)) / ((float)(textureHeight));
+                                    float displayAspectRatio = m.originalWidthAxisScale / m.originalHeightAxisScale;
+
+                                    // aspect ratio doesn't match? scale panel to fill the texture on one of the dimensions
+                                    if (Math.Abs(displayAspectRatio - aspectRatio) > 0.001f)
+                                    {
+                                        if (displayAspectRatio > aspectRatio) // 
+                                        {
+                                            // fills display height and scales down width
+                                            m.SetAxisDimension(m.widthAxis, aspectRatio * m.originalHeightAxisScale);
+
+                                        }
+                                        else // displayAspectRatio < aspectRatio
+                                        {
+                                            m.SetAxisDimension(m.heightAxis, (1.0f / aspectRatio) * m.originalWidthAxisScale);
+                                        }
+
+                                        Debug.Log(string.Format("[JPEGStreamReceiver@{0}] Scalled mesh in \"{1}\" from size {2}x{3} to {4}x{5}", LogName, m.mesh.transform.name, m.originalWidthAxisScale, m.originalHeightAxisScale, m.GetAxisDimension(m.widthAxis), m.GetAxisDimension(m.heightAxis)));
+                                    }
                                 }
+
+                                
                             }
                         }
                         
-
-                        Debug.Log(string.Format("[JPEGStreamReceiver@{0}] Allocated a texture buffer of {1}x{2}", LogName, textureWidth, textureHeight));
                     }
 
-                    // apply texture
+                    // upload texture to the GPU
                     videoTexture.LoadRawTextureData(currentBuffer);
                     videoTexture.Apply();
+
+                    // increments frames played
                     displayedFrames++;
 
                     // frees it before next render loop
@@ -516,41 +602,6 @@ namespace xrcollabtk
         }
 
 
-        void SetAxisDimension(Transform t, scaleMeshAxis axis, float scale)
-        {
-            Vector3 newScale = t.localScale;
-            switch (axis)
-            {
-                case scaleMeshAxis.X:
-                    newScale.x = scale;
-                    break;
-
-                case scaleMeshAxis.Y:
-                    newScale.y = scale;
-                    break;
-
-                case scaleMeshAxis.Z:
-                    newScale.z = scale;
-                    break;
-            }
-            t.localScale = newScale;
-        }
-
-        float GetAxisDimension(Transform t, scaleMeshAxis axis)
-        {
-            switch (axis)
-            {
-                case scaleMeshAxis.X:
-                    return t.localScale.x;
-
-                case scaleMeshAxis.Y:
-                    return t.localScale.y;
-
-                case scaleMeshAxis.Z:
-                    return t.localScale.z;       
-            }
-            return 1.0f;
-        }
 
 
         #region FrameSettings definition
