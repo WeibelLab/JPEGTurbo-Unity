@@ -4,10 +4,7 @@
  JPEGStreamerTCPServer, used as a module, allows one to set up a server that streams an array of frames (in a loop).
  The implementation here is slightly different from the implementation used in StreamClockJPEG.py
  
- JPEGStreamerTCPServer has three modes:
-   -- user triggered stream
-   -- fixed FPS stream
-
+ JPEGStreamerTCPServer, used as a script, can stream the user webcam as well as video files
 
  Under the hood:
  
@@ -106,10 +103,13 @@ class JPEGStreamerServer():
       # encode frames only once
       if (self._preEncoded == True): 
         self.logger.info('Pre-encoding %d frames...' % self._frameCount)
+        
+        startTime = time.time()
         self._encodedFrames = []
         for frame in self._frames:
           self._encodedFrames.append(self.encodeJPEG(frame))
-        self.logger.info('Pre-encoded %d frames in %f seconds' % len(self._frames))
+        
+        self.logger.info('Pre-encoded %d frames in %f seconds' % (len(self._frames),(time.time() - startTime)))
         self.sendNextFrame = self._sendNextFrameEncoded # makes sure that calling sendNextFrame uses the pre-encoded list
         self._frameCount = len(self._encodedFrames)
         self._frames = None # we should not keep a reference to the raw frames
@@ -117,12 +117,6 @@ class JPEGStreamerServer():
     # makes sure that clients won't get disconnected if they don't send anything
     # (see https://docs.python.org/3/library/socketserver.html#socketserver.BaseServer.timeout)
     self.timeout = None
-    
-    # finds the max FPS for the server
-    if runMAXFPSTest:
-      self.FindMaxFrameRate()
-    return
-   
   
   #
   # JPEG encoding
@@ -226,7 +220,7 @@ class JPEGStreamerServer():
   #
   
   def RunStreamingLoop(self):
-  '''This **blocking** method loops until requested to stop through a CTRL+C or a Stop method'''
+    '''This **blocking** method loops until requested to stop through a CTRL+C or a Stop method'''
     self.loopForever = True
     maxTimePerFrame = (1.0 / self._fps) - 0.005
     while self.loopForever:
@@ -241,10 +235,15 @@ class JPEGStreamerServer():
         
       except KeyboardInterrupt:
         self.logger.info("CTRL+C requested! Stopping...")
-        loopForever = False
+        self.loopForever = False
       except Exception as e:
         self.logger.error("Unhandled exception!",e)
-        loopForever = False
+        self.loopForever = False
+        
+  def StopStreamingLoop(self):
+    if (self.loopForever):
+      self.logger.info("Stopping streaming loop")
+      self.loopForever = False
       
 
 #
@@ -260,7 +259,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="TCPServer that streams a JPEG of current the current time")
   parser.add_argument('filename', type=str, help="file path that will be streamed over to all connected clients") 
   parser.add_argument('port', nargs='?', type=int, help="TCPServer's port (default=50000)", default=50000)  
-  parser.add_argument('--webcam', nargs='?', action='store_const',const=True, default=False, help="if set, interprets the first argument as a webcam path / number", default=False)
+  parser.add_argument('--webcam', action='store_const',const=True, default=False, help="if set, interprets the first argument as a webcam path / number")
   parser.add_argument('--quality', nargs='?', type=int, help="desired JPEG quality (default=90)", default=90)
   parser.add_argument('--fps', nargs='?', type=int, help="desired frame rate", default=30)
   
@@ -278,39 +277,37 @@ if __name__ == '__main__':
   FPS = args.fps
 
   mainLogger.info("Welcome to JPEGTurboTCPServer")
-  mainLogger.info("Streaming %s (webcam? %s)" % (args.filename, "yes" if args.webcam else "no"))
+  mainLogger.info("Streaming %s %s" % ("webcam" if args.webcam else "file", args.filename))
   mainLogger.info("-"*20)
 
   # Opening video / file (the application will only crash if the user doesn't have OpenCV installed)
   import cv2
   import os
   
-  opencvURI = parser.filename
+  opencvURI = args.filename
   frames = None
-  if (parser.webcam):
+  if (args.webcam):
     try: 
-        opencvURI = int(parser.filename) # if URI can be parsed to a number, then it is a webcam index
+        opencvURI = int(args.filename) # if URI can be parsed to a number, then it is a webcam index
     except ValueError:
-        opencvURI = parser.filename
+        opencvURI = args.filename
   
-  if parser.webcam:
-    mainLogger.info("Opening file %s" % opencvURI)
+  if args.webcam:
+    mainLogger.info("Opening webcam %s (it might take a few minutes on Windows)" % opencvURI)
   else:
-    mainLogger.info("Opening webcam %s" % opencvURI)
+    mainLogger.info("Opening file %s" % opencvURI)
 
   videoCapture = cv2.VideoCapture(opencvURI)
-   
-  # loop over the frames of the video to put them on an array
-  frames = []
-	while True:
-		# grab the current frame
-		(grabbed, frame) = video.read()
-	 
-		# check to see if we have reached the end of the
-		# video
-		if not grabbed:
-			break
-		frames.append(frame)
+  if not args.webcam:
+    # loop over the frames of the video to put them on an array
+    frames = []
+    while True:
+      # grab the current frame
+      (grabbed, frame) = videoCapture.read()
+     
+      if not grabbed:
+        break
+      frames.append(frame)
 
   #
   # Starting server
@@ -323,18 +320,19 @@ if __name__ == '__main__':
   
   # are we streaming from a file? then we can let JPEGStreamerServer take over
   mainLogger.info("Streaming to clients! Use CTRL+C to stop...")
-  if not parser.webcam:
+  if not args.webcam:
     server.RunStreamingLoop()
   else:
-    while True:
+    loopForever = True
+    while loopForever:
       try:
-        ret, frame = cap.read()
-        self.encodeAndSendJPEGToAllClients(frame)        
+        ret, frame = videoCapture.read()
+        server.encodeAndSendJPEGToAllClients(frame)        
       except KeyboardInterrupt:
-        self.logger.info("CTRL+C requested! Stopping...")
+        mainLogger.info("CTRL+C requested! Stopping...")
         loopForever = False
       except Exception as e:
-        self.logger.error("Unhandled exception!",e)
+        mainLogger.error("Unhandled exception!",e)
         loopForever = False
       
   
