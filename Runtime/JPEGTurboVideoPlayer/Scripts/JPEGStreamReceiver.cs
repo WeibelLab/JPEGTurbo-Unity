@@ -197,12 +197,15 @@ namespace xrcollabtk
                     Debug.Log(string.Format("[JPEGStreamReceiver@{0}] Updating a total of {1} mesh(es) with JPEGS", LogName, meshesToUpdate.Length));
                     foreach (MeshToUpdate m in meshesToUpdate)
                     {
-                        // sets video mesh
-                        m.mesh.material.mainTexture = videoTexture;
+                        if (m.mesh != null)
+                        { 
+                          // sets video mesh
+                          m.mesh.material.mainTexture = videoTexture;
 
-                        // saves original scale dimensions to scale it back
-                        m.originalWidthAxisScale = m.GetAxisDimension(m.widthAxis);
-                        m.originalHeightAxisScale = m.GetAxisDimension(m.heightAxis);
+                          // saves original scale dimensions to scale it back
+                          m.originalWidthAxisScale = m.GetAxisDimension(m.widthAxis);
+                          m.originalHeightAxisScale = m.GetAxisDimension(m.heightAxis);
+                        }
                     }                    
 
                     SetTexture = true;
@@ -354,7 +357,8 @@ namespace xrcollabtk
                                 foreach (MeshToUpdate m in meshesToUpdate)
                                 {
                                     // updates video mesh
-                                    m.mesh.material.mainTexture = videoTexture;
+                                    if (m.mesh != null)
+                                      m.mesh.material.mainTexture = videoTexture;
                                 }
                             }
                             // we set the texture
@@ -369,7 +373,7 @@ namespace xrcollabtk
                         {
                             foreach (MeshToUpdate m in meshesToUpdate)
                             {
-                                if (m.scaleMesh)
+                                if (m.mesh != null && m.scaleMesh)
                                 { 
                                     // does the aspect ratio differ by any chance?
                                     float aspectRatio = ((float)(textureWidth)) / ((float)(textureHeight));
