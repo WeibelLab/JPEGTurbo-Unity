@@ -146,6 +146,10 @@ namespace xrcollabtk
         [Tooltip("libjpeg-turbo is already fast, but it can run faster! Notice: Faster decoding can causes quality drops")]
         public bool FasterDecoding = false;
 
+        // adding the possibility to ignore frames when needed
+        [Tooltip("Stops decoding frames (and updating textures) when this is set to true. Mostly used for debbugging and testing purposes.")]
+        public bool IgnoreIncomingFrames = false;
+
         // keeps track of how many frames were dropped due to 
         // not being able to display them
         long droppedFrames = 0, decodedFrameErrors = 0, decodedFrames = 0, displayedFrames;
@@ -251,6 +255,11 @@ namespace xrcollabtk
 
 
             onenabletime = DateTime.Now;
+
+            if (IgnoreIncomingFrames)
+            {
+                Debug.LogWarning(string.Format("[JPEGStreamReceiver@{0}] IgnoreIncomingFrames is set to true! No frames will be decoded!", LogName));
+            }
         }
 
         public void OnDisable()
@@ -558,6 +567,12 @@ namespace xrcollabtk
         /// 
         public void NewFrameArrived(byte[] frame)
         {
+            if (IgnoreIncomingFrames)
+            {
+                ++droppedFrames;
+                return;
+            }
+
             if (frame != null)
             {
                 // libjpeg decoder is available?
