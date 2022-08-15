@@ -127,7 +127,7 @@ namespace xrcollabtk
         private bool SetTexture = false;
 
         #region Private info related to JPEG decoding and textures to display JPEG
-        Texture2D videoTexture;
+        public Texture2D videoTexture;
         public int textureWidth, textureHeight;
 
         // receives all encoded jpegs in a queue so that it can decode them
