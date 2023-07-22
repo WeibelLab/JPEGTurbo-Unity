@@ -1,7 +1,7 @@
 # JPEGTurbo-Unity
 ![Example of JPEGTurbo-Unity running on the editor](screenshot.png)
 
-A libjpeg-turbo wrapper for Unity - Runs on HoloLens and Oculus Quest
+A libjpeg-turbo wrapper for Unity - It runs on HoloLens and Oculus Quest.
 
 
 # Roadmap
@@ -37,4 +37,17 @@ If you wish to add your project here, please, [create an Issue](https://github.c
 
 # License
 <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.
-<small>If you are insterested in making a commercial use of this code, please, reach out to the authors</small>
+
+# Citation
+[![DOI](https://zenodo.org/badge/278199660.svg)](https://zenodo.org/badge/latestdoi/278199660)
+
+If you make use of this library in your research project, please, don't forget to refer to it by citing the following work:
+```
+@inproceedings{gasques2021artemis,
+  title={ARTEMIS: A collaborative mixed-reality system for immersive surgical telementoring},
+  author={Gasques, Danilo and Johnson, Janet G and Sharkey, Tommy and Feng, Yuanyuan and Wang, Ru and Xu, Zhuoqun Robin and Zavala, Enrique and Zhang, Yifei and Xie, Wanze and Zhang, Xinming and others},
+  booktitle={Proceedings of the 2021 CHI Conference on Human Factors in Computing Systems},
+  pages={1--14},
+  year={2021}
+}
+```
